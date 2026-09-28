@@ -9,7 +9,7 @@ Due giocatori, terminale, rete TCP. Un file Python, niente dipendenze.
 [![Dependencies](https://img.shields.io/badge/Dipendenze-Zero-FF6B6B?style=for-the-badge)](battaglia_navale.py)
 [![Platform](https://img.shields.io/badge/Linux%20%7C%20macOS%20%7C%20Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white)](avvia.sh)
 
-[Sito del progetto](website/) · deploy statico con [Astro](https://astro.build) (`vercel.json` in root)
+[Sito del progetto](website/) · deploy [Astro](https://astro.build) su Vercel (root directory del progetto: `website/`, vedi `website/vercel.json`)
 
 </div>
 

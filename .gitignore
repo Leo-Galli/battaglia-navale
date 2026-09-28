@@ -10,3 +10,7 @@ venv/
 website/node_modules/
 website/dist/
 website/.astro/
+.vercel/
+website/.vercel/
+.vercel
+.env*
