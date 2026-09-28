@@ -1,0 +1,12 @@
+{
+  "appId": "com.leogalli.battaglia_navale",
+  "appName": "Battaglia Navale",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#071322"
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

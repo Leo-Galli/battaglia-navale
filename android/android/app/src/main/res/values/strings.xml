@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Battaglia Navale</string>
+    <string name="title_activity_main">Battaglia Navale</string>
+    <string name="package_name">com.leogalli.battaglia_navale</string>
+    <string name="custom_url_scheme">com.leogalli.battaglia_navale</string>
+</resources>
