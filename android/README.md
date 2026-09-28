@@ -37,6 +37,14 @@ cd android
 
 APK: `android/app/build/outputs/apk/release/app-release.apk`
 
+## Aggiornamenti automatici (GitHub)
+
+All’avvio l’app interroga  
+`https://api.github.com/repos/Leo-Galli/battaglia-navale/releases/latest`  
+e confronta la versione con quella installata. Se c’è un APK più recente nella release, propone **Scarica e installa** (DownloadManager + permesso `REQUEST_INSTALL_PACKAGES`).
+
+Configurazione in `www/config.js`. Controllo manuale: pulsante in header.
+
 ## CI
 
 Push tag `v*` avvia `.github/workflows/android-apk.yml` e allega l’APK agli artifact / release GitHub.

@@ -296,6 +296,7 @@ flowchart LR
 
     subgraph Android["android/www"]
         AUI[index.html game.js<br/>+ D-pad touch]
+        UPD[update.js<br/>GitHub releases/latest]
     end
 
     subgraph Cap["Capacitor WebView"]
@@ -304,6 +305,8 @@ flowchart LR
 
     WUI -->|fetch REST| HTTP[(server-web :8080)]
     AUI --> WV
+    UPD -->|api.github.com| GH[(GitHub Releases)]
+    UPD -->|DownloadManager| APKINST[InstallApk plugin]
     WV -->|fetch REST| HTTP
 
     WUI -. stessa logica .- AUI

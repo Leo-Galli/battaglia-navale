@@ -90,7 +90,7 @@ public class InstallApkPlugin extends Plugin {
         DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
         request.setTitle("Battaglia Navale");
         request.setDescription("Download aggiornamento");
-        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_COMPLETED);
+        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
         request.setDestinationInExternalFilesDir(getContext(), Environment.DIRECTORY_DOWNLOADS, APK_NAME);
 
         pendingDownloadId = dm.enqueue(request);
