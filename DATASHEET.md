@@ -149,7 +149,7 @@ LUNGHEZZE_NAVI = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1]  # 10 navi, 17 caselle
 - Una cella può essere colpita **una sola volta**.
 - Colpo su nave → cella `X`; su acqua → `O`.
 - Nave affondata quando **tutti** i suoi segmenti sono `X`.
-- Dopo uno sparo valido (senza vittoria) il turno passa **sempre** all’avversario.
+- Dopo un **mancato** il turno passa all’avversario; dopo un **colpito** (senza vittoria) **resta** il tuo turno.
 - Vince chi affonda **tutta** la flotta avversaria (17 celle nave colpite).
 
 ### Coordinate

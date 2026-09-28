@@ -7,13 +7,13 @@ import { siteConfig } from '../config/site';
   <header class="header">
     <div class="wrap header-inner">
       <a class="brand" href="/" aria-label="Battaglia Navale — home">
-        <span class="brand-mark" aria-hidden="true">⚓</span>
         <span>Battaglia Navale</span>
       </a>
       <nav class="nav" aria-label="Principale">
         <a href="#gioco">Gioco</a>
         <a href="#avvio">Avvio</a>
         <a href="#tech">Stack</a>
+        <a href="/gioca">Gioca online</a>
         <a class="nav-cta" href={siteConfig.githubRepo} rel="noopener noreferrer">
           GitHub
         </a>
@@ -32,8 +32,8 @@ import { siteConfig } from '../config/site';
             Invio. Un solo file Python, nessuna dipendenza da installare: ideale in locale o in LAN.
           </p>
           <div class="hero-actions">
-            <a class="btn primary" href={siteConfig.githubRepo}>Clona il repository</a>
-            <a class="btn ghost" href="#avvio">Come si avvia</a>
+            <a class="btn primary" href="/gioca">Gioca online</a>
+            <a class="btn ghost" href={siteConfig.githubRepo}>Repository</a>
           </div>
           <ul class="hero-stats" aria-label="Caratteristiche principali">
             <li><strong>0</strong> pacchetti pip</li>
@@ -45,12 +45,12 @@ import { siteConfig } from '../config/site';
           <div class="board-frame">
             <p class="board-title">Avversario</p>
             <pre class="board mono" aria-hidden="true"><span class="dim">   A B C D E F G H I J</span>
-<span class="dim"> 1</span> ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-<span class="dim"> 2</span> ~ ~ <span class="miss">○</span> ~ ~ ~ ~ ~ ~ ~
-<span class="dim"> 3</span> ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-<span class="dim"> 4</span> ~ ~ ~ <span class="hit">✖</span> ~ ~ ~ ~ ~ ~
-<span class="dim"> 5</span> ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-<span class="dim"> 6</span> ~ <span class="hit">✖</span> ~ ~ ~ ~ ~ ~ ~ ~
+<span class="dim"> 1</span> . . . . . . . . . .
+<span class="dim"> 2</span> . . <span class="miss">o</span> . . . . . . .
+<span class="dim"> 3</span> . . . . . . . . . .
+<span class="dim"> 4</span> . . . <span class="hit">X</span> . . . . . .
+<span class="dim"> 5</span> . . . . . . . . . .
+<span class="dim"> 6</span> . <span class="hit">X</span> . . . . . . . .
 <span class="dim"> 7</span> ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 <span class="dim"> 8</span> ~ ~ ~ ~ ~ ~ ~ ~ ~ ~</pre>
           </div>

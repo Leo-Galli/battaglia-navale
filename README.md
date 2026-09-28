@@ -35,7 +35,7 @@ python3 battaglia_navale.py client 127.0.0.1 5555
 
 Runtime in `.battaglia_navale/` (`server.log`, `server.pid`, `server.json`).
 
-**Regole:** griglia 10×10 (A–J, 1–10), flotta 4-3-3-2-2-2-1×4. Piazzamento: frecce, Invio sui due estremi (**R** per rifare il primo). Sparo: frecce sulla griglia avversaria, Invio. `.` acqua, `N` tua nave, `X` colpito, `O` mancato. Vince chi affonda tutto.
+**Regole:** griglia 10×10 (A–J, 1–10), flotta 4-3-3-2-2-2-1×4. Colpito = giri ancora; mancato = turno avversario. Terminale: frecce/WASD, **R** ruota, **0** auto-piazza, Invio conferma. Online browser: `/gioca` + `python3 battaglia_navale.py server-web 0.0.0.0 8080`. Motore puro in `motore.py`.
 
 Tutto in `battaglia_navale.py`; `avvia.sh` e `avvia.bat` sono solo comodi da lanciare.
 

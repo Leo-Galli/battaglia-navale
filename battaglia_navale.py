@@ -21,19 +21,31 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.abspath(__file__)
 CARTELLA_DATI = os.path.join(BASE, ".battaglia_navale")
 PID_FILE = os.path.join(CARTELLA_DATI, "server.pid")
+PID_WEB_FILE = os.path.join(CARTELLA_DATI, "server-web.pid")
 LOG_FILE = os.path.join(CARTELLA_DATI, "server.log")
+LOG_WEB_FILE = os.path.join(CARTELLA_DATI, "server-web.log")
 CONFIG_FILE = os.path.join(CARTELLA_DATI, "server.json")
 
-DIMENSIONE_GRIGLIA = 10
-COLONNE = "ABCDEFGHIJ"
-LUNGHEZZE_NAVI = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1]
-PORTA_PREDEFINITA = 5555
-HOST_PREDEFINITO = "127.0.0.1"
+from motore import (
+    ACQUA,
+    COLONNE,
+    COLPITO,
+    DIMENSIONE_GRIGLIA,
+    LUNGHEZZE_NAVI,
+    MANCATO,
+    NAVE,
+    Partita,
+    Tavola,
+    celle_nave,
+    coordinate_label,
+    parse_coordinata,
+    piazzamento_casuale,
+    piazzamento_valido,
+)
 
-ACQUA = "."
-NAVE = "N"
-COLPITO = "X"
-MANCATO = "O"
+PORTA_PREDEFINITA = 5555
+PORTA_HTTP_PREDEFINITA = 8080
+HOST_PREDEFINITO = "127.0.0.1"
 
 PORTA_MIN = 1024
 PORTA_MAX = 65535
@@ -145,6 +157,7 @@ def _defaults_config():
     return {
         "host": "127.0.0.1",
         "porta": 5555,
+        "porta_http": PORTA_HTTP_PREDEFINITA,
         "conferme_veloci": True,
     }
 
@@ -169,6 +182,7 @@ def carica_config_completa(percorso):
             base.update(dati)
         porta = int(base.get("porta", base["porta"]))
         base["porta"] = porta
+        base["porta_http"] = int(base.get("porta_http", PORTA_HTTP_PREDEFINITA))
         base["conferme_veloci"] = bool(base.get("conferme_veloci", False))
     except (OSError, ValueError, TypeError):
         pass
@@ -203,207 +217,6 @@ class Ricevitore:
             self.buffer += blocco.decode("utf-8")
         riga, self.buffer = self.buffer.split("\n", 1)
         return json.loads(riga)
-
-
-def parse_coordinata(testo):
-    testo = testo.strip().upper().replace(" ", "")
-    if len(testo) < 2:
-        return None
-    colonna = testo[0]
-    if colonna not in COLONNE:
-        return None
-    try:
-        riga = int(testo[1:])
-    except ValueError:
-        return None
-    if riga < 1 or riga > DIMENSIONE_GRIGLIA:
-        return None
-    return riga - 1, COLONNE.index(colonna)
-
-
-class Tavola:
-    def __init__(self):
-        self.griglia = [[ACQUA for _ in range(DIMENSIONE_GRIGLIA)] for _ in range(DIMENSIONE_GRIGLIA)]
-        self.colpi_ricevuti = [[False for _ in range(DIMENSIONE_GRIGLIA)] for _ in range(DIMENSIONE_GRIGLIA)]
-        self.navi = []
-
-    def dentro(self, riga, colonna):
-        return 0 <= riga < DIMENSIONE_GRIGLIA and 0 <= colonna < DIMENSIONE_GRIGLIA
-
-    def celle_nave(self, riga, colonna, lunghezza, orizzontale):
-        celle = []
-        for i in range(lunghezza):
-            r = riga if orizzontale else riga + i
-            c = colonna + i if orizzontale else colonna
-            celle.append((r, c))
-        return celle
-
-    def posizione_valida(self, riga, colonna, lunghezza, orizzontale):
-        celle = self.celle_nave(riga, colonna, lunghezza, orizzontale)
-        for r, c in celle:
-            if not self.dentro(r, c):
-                return False
-            if self.griglia[r][c] != ACQUA:
-                return False
-        return True
-
-    def piazza_nave(self, riga, colonna, lunghezza, orizzontale):
-        if not self.posizione_valida(riga, colonna, lunghezza, orizzontale):
-            return False
-        celle = self.celle_nave(riga, colonna, lunghezza, orizzontale)
-        for r, c in celle:
-            self.griglia[r][c] = NAVE
-        self.navi.append(list(celle))
-        return True
-
-    def spara(self, riga, colonna):
-        if not self.dentro(riga, colonna):
-            return "invalido", False
-        if self.colpi_ricevuti[riga][colonna]:
-            return "già_colpito", False
-        self.colpi_ricevuti[riga][colonna] = True
-        if self.griglia[riga][colonna] == NAVE:
-            self.griglia[riga][colonna] = COLPITO
-            affondata = self.nave_affondata_in(riga, colonna)
-            return "colpito", affondata
-        self.griglia[riga][colonna] = MANCATO
-        return "mancato", False
-
-    def nave_affondata_in(self, riga, colonna):
-        for segmento in self.navi:
-            if (riga, colonna) in segmento:
-                for r, c in segmento:
-                    if self.griglia[r][c] != COLPITO:
-                        return False
-                return True
-        return False
-
-    def tutte_navi_affondate(self):
-        for segmento in self.navi:
-            for r, c in segmento:
-                if self.griglia[r][c] != COLPITO:
-                    return False
-        return True
-
-    def righe_testo(self, mostra_navi=True):
-        righe = ["   " + " ".join(COLONNE)]
-        for i in range(DIMENSIONE_GRIGLIA):
-            pezzi = []
-            for j in range(DIMENSIONE_GRIGLIA):
-                cella = self.griglia[i][j]
-                if not mostra_navi and cella == NAVE:
-                    pezzi.append(ACQUA)
-                else:
-                    pezzi.append(cella)
-            righe.append(f"{i + 1:2d} " + " ".join(pezzi))
-        return righe
-
-    def disegna(self, titolo, mostra_navi=True):
-        linee = [titolo] + self.righe_testo(mostra_navi)
-        return "\n".join(linee)
-
-
-class Partita:
-    def __init__(self):
-        self.lock = threading.Lock()
-        self.tavole = {1: Tavola(), 2: Tavola()}
-        self.indice_nave = {1: 0, 2: 0}
-        self.fase = "posizionamento"
-        self.turno = 1
-        self.vincitore = None
-
-    def prossima_lunghezza(self, giocatore):
-        indice = self.indice_nave[giocatore]
-        if indice >= len(LUNGHEZZE_NAVI):
-            return None
-        return LUNGHEZZE_NAVI[indice]
-
-    def posizionamento_completo(self):
-        return all(self.indice_nave[g] >= len(LUNGHEZZE_NAVI) for g in (1, 2))
-
-    def piazza(self, giocatore, riga, colonna, orizzontale):
-        with self.lock:
-            if self.fase != "posizionamento":
-                return False, "fase_errata"
-            lunghezza = self.prossima_lunghezza(giocatore)
-            if lunghezza is None:
-                return False, "flotta_completa"
-            tavola = self.tavole[giocatore]
-            if not tavola.piazza_nave(riga, colonna, lunghezza, orizzontale):
-                return False, "posizione_non_valida"
-            self.indice_nave[giocatore] += 1
-            if self.posizionamento_completo():
-                self.fase = "battaglia"
-            return True, lunghezza
-
-    def spara(self, giocatore, riga, colonna):
-        with self.lock:
-            if self.fase != "battaglia":
-                return None
-            if giocatore != self.turno:
-                return {"esito": "turno_errato"}
-            avversario = 2 if giocatore == 1 else 1
-            tavola = self.tavole[avversario]
-            risultato, affondata = tavola.spara(riga, colonna)
-            if risultato == "invalido":
-                return {"esito": "coordinata_invalida"}
-            if risultato == "già_colpito":
-                return {"esito": "già_colpito"}
-            payload = {
-                "esito": risultato,
-                "affondata": affondata,
-                "riga": riga,
-                "colonna": colonna,
-                "bersaglio": avversario,
-            }
-            if tavola.tutte_navi_affondate():
-                self.vincitore = giocatore
-                self.fase = "fine"
-                payload["vittoria"] = giocatore
-            else:
-                self.turno = avversario
-                payload["prossimo_turno"] = self.turno
-            return payload
-
-
-def celle_nave(riga, colonna, lunghezza, orizzontale):
-    out = []
-    for i in range(lunghezza):
-        r = riga if orizzontale else riga + i
-        c = colonna + i if orizzontale else colonna
-        if r < 0 or r >= DIMENSIONE_GRIGLIA or c < 0 or c >= DIMENSIONE_GRIGLIA:
-            return None
-        out.append((r, c))
-    return out
-
-
-def piazzamento_valido(griglia, riga, colonna, lunghezza, orizzontale):
-    celle = celle_nave(riga, colonna, lunghezza, orizzontale)
-    if celle is None:
-        return False
-    for r, c in celle:
-        if griglia[r][c] != ACQUA:
-            return False
-    return True
-
-
-def _celle_libere(griglia, riga, colonna, lunghezza, orizzontale):
-    celle = celle_nave(riga, colonna, lunghezza, orizzontale)
-    if celle is None:
-        return False
-    return all(griglia[r][c] == ACQUA for r, c in celle)
-
-
-def piazzamento_casuale(griglia, lunghezza):
-    opzioni = []
-    for orizzontale in (True, False):
-        for r in range(DIMENSIONE_GRIGLIA):
-            for c in range(DIMENSIONE_GRIGLIA):
-                if _celle_libere(griglia, r, c, lunghezza, orizzontale):
-                    opzioni.append((r, c, orizzontale))
-    if not opzioni:
-        return None
-    return random.choice(opzioni)
 
 
 RESET = "\033[0m"
@@ -569,8 +382,9 @@ def riquadro(titolo, righe, larghezza=LARGHEZZA_PANNELLO):
 
 def menu_principale():
     opzioni = [
-        "Avvia server",
-        "Connetti in rete",
+        "Avvia server (terminale TCP)",
+        "Avvia server web (online browser)",
+        "Connetti in rete (terminale)",
         "Stato server",
         "Ferma server",
         "Esci",
@@ -654,10 +468,10 @@ def pannello_evento(titolo, messaggio):
 
 def pannello_legenda():
     righe = [
-        stile(" ~ ", GRIGIO) + " acqua",
-        stile(" █ ", VERDE + GRASSETTO) + " tua nave",
-        stile(" ✖ ", ROSSO + GRASSETTO) + " colpito",
-        stile(" ○ ", GIALLO) + " mancato",
+        stile(" . ", GRIGIO) + " acqua",
+        stile(" # ", VERDE + GRASSETTO) + " tua nave",
+        stile(" X ", ROSSO + GRASSETTO) + " colpito",
+        stile(" o ", GIALLO) + " mancato",
     ]
     print(riquadro("Legenda", righe, larghezza=44))
 
@@ -742,7 +556,7 @@ def larghezza_visibile(testo):
     for ch in _RE_ANSI.sub("", testo or ""):
         if unicodedata.combining(ch):
             continue
-        n += 2 if ch == "█" or unicodedata.east_asian_width(ch) in "WF" else 1
+        n += 2 if unicodedata.east_asian_width(ch) in "WF" else 1
     return n
 
 
@@ -771,6 +585,29 @@ def _prova_curses():
         return None
 
 
+def _decodifica_tasto(b):
+    if b in ("\r", "\n"):
+        return "invio"
+    low = b.lower()
+    if low in ("q", "\x1b"):
+        return "esci"
+    if low == "r":
+        return "ruota"
+    if b in ("A", "0"):
+        return "auto"
+    if low in ("w", "8", "k"):
+        return "su"
+    if low in ("s", "2", "j"):
+        return "giu"
+    if low in ("a", "4", "h"):
+        return "sinistra"
+    if low in ("d", "6", "l"):
+        return "destra"
+    if b == " ":
+        return "ruota"
+    return "altro"
+
+
 def _leggi_tasto_raw():
     if sys.platform == "win32":
         import msvcrt
@@ -779,17 +616,7 @@ def _leggi_tasto_raw():
             secondo = msvcrt.getwch()
             mappa = {"H": "su", "P": "giu", "K": "sinistra", "M": "destra"}
             return mappa.get(secondo, "altro")
-        if primo in ("\r", "\n"):
-            return "invio"
-        if primo.lower() == "q":
-            return "esci"
-        if primo.lower() == "r":
-            return "ruota"
-        if primo.lower() == "a":
-            return "auto"
-        return "altro"
-    import termios
-    import tty
+        return _decodifica_tasto(primo)
     fd = sys.stdin.fileno()
     vecchio = termios.tcgetattr(fd)
     try:
@@ -806,15 +633,7 @@ def _leggi_tasto_raw():
             if resto == "[D":
                 return "sinistra"
             return "esci"
-        if b in ("\r", "\n"):
-            return "invio"
-        if b.lower() == "q":
-            return "esci"
-        if b.lower() == "r":
-            return "ruota"
-        if b.lower() == "a":
-            return "auto"
-        return "altro"
+        return _decodifica_tasto(b)
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, vecchio)
 
@@ -843,7 +662,7 @@ def _render_statico(opzioni, selezione, titolo="Menu principale", intestazione=F
     righe = []
     for i, voce in enumerate(opzioni):
         if i == selezione:
-            righe.append(stile(" ▶ " + voce, GRASSETTO + CIANO))
+            righe.append(stile(" > " + voce, GRASSETTO + CIANO))
         else:
             righe.append("   " + voce)
     head = _intestazione_stilizzata() if intestazione else None
@@ -851,7 +670,7 @@ def _render_statico(opzioni, selezione, titolo="Menu principale", intestazione=F
 
 
 def _attr_riga_menu(curses, linea):
-    if " ▶ " in linea:
+    if " > " in linea:
         return curses.color_pair(3) | curses.A_BOLD
     if linea[:1] in "╔╠╚":
         return curses.color_pair(5)
@@ -873,7 +692,7 @@ def _menu_curses(curses, opzioni, titolo, intestazione=False):
             voci = []
             for i, voce in enumerate(opzioni):
                 if i == selezione:
-                    voci.append(f" ▶ {voce}")
+                    voci.append(f" > {voce}")
                 else:
                     voci.append(f"   {voce}")
             for linea in _linee_pannello_plain(titolo, voci, intestazione=head):
@@ -948,9 +767,7 @@ def attesa_invio(messaggio=""):
 
 
 def simbolo_visivo(ch, terminale=False):
-    if terminale:
-        return {".": "~", "N": "#", "X": "X", "O": "o"}.get(ch, ch)
-    return {".": "~", "N": "█", "X": "✖", "O": "○"}.get(ch, ch)
+    return {".": ".", "N": "#", "X": "X", "O": "o"}.get(ch, ch)
 
 
 def _init_coppie_colori(curses):
@@ -1001,10 +818,6 @@ def estrai_griglia(testo_tavola):
     return matrice[:DIMENSIONE_GRIGLIA]
 
 
-def coordinate_label(riga, colonna):
-    return f"{COLONNE[colonna]}{riga + 1}"
-
-
 def celle_in_linea(r1, c1, r2, c2):
     if r1 == r2 and c1 != c2:
         c_min, c_max = sorted([c1, c2])
@@ -1052,10 +865,10 @@ def _larghezza_griglia():
 
 def _disegna_legenda_curses(stdscr, curses, y, x):
     voci = [
-        (10, "~ acqua"),
-        (2, "█ nave"),
-        (8, "✖ colpito"),
-        (9, "○ mancato"),
+        (10, ". acqua"),
+        (2, "# nave"),
+        (8, "X colpito"),
+        (9, "o mancato"),
     ]
     try:
         stdscr.addstr(y, x, "Legenda", curses.color_pair(5) | curses.A_BOLD)
@@ -1069,7 +882,7 @@ def _disegna_barra_progresso(stdscr, curses, y, x, completate, totali, larghezza
     if totali <= 0:
         return
     pieni = int(larghezza * completate / totali)
-    barra = "█" * pieni + "░" * (larghezza - pieni)
+    barra = "#" * pieni + "-" * (larghezza - pieni)
     try:
         stdscr.addstr(y, x, f"Flotta [{completate}/{totali}] ", curses.color_pair(5))
         stdscr.addstr(y, x + 18, barra[:larghezza], curses.color_pair(2 if completate >= totali else 6))
@@ -1156,7 +969,7 @@ def _sessione_curses(curses, griglia_propria, griglia_nemica, modalita, lunghezz
                 else:
                     anteprima_invalida = set(celle_prev)
             try:
-                stdscr.addstr(0, 2, "⚓  BATTAGLIA NAVALE", curses.color_pair(1) | curses.A_BOLD)
+                stdscr.addstr(0, 2, "BATTAGLIA NAVALE", curses.color_pair(1) | curses.A_BOLD)
                 if modalita == "piazza":
                     segno = "—" if orizzontale else "|"
                     stdscr.addstr(1, 2, f"Nave {lunghezza}  {coordinate_label(r, c)}  {segno}", curses.color_pair(4) | curses.A_BOLD)
@@ -1202,7 +1015,7 @@ def _sessione_curses(curses, griglia_propria, griglia_nemica, modalita, lunghezz
                     pass
             stdscr.refresh()
             tasto = stdscr.getch()
-            if tasto in (ord("a"), ord("A")) and modalita == "piazza":
+            if tasto in (ord("0"),) and modalita == "piazza":
                 auto = piazzamento_casuale(griglia_propria, lunghezza)
                 if auto is None:
                     messaggio = "Nessuno spazio libero per questa nave."
@@ -1210,13 +1023,13 @@ def _sessione_curses(curses, griglia_propria, griglia_nemica, modalita, lunghezz
                 return ("piazza", auto[0], auto[1], auto[2])
             if tasto in (27, ord("q"), ord("Q")):
                 return None
-            if tasto in (curses.KEY_UP, ord("k")):
+            if tasto in (curses.KEY_UP, ord("k"), ord("K"), ord("w"), ord("W"), ord("8")):
                 r = max(0, r - 1)
-            elif tasto in (curses.KEY_DOWN, ord("j")):
+            elif tasto in (curses.KEY_DOWN, ord("j"), ord("J"), ord("s"), ord("S"), ord("2")):
                 r = min(DIMENSIONE_GRIGLIA - 1, r + 1)
-            elif tasto in (curses.KEY_LEFT, ord("h")):
+            elif tasto in (curses.KEY_LEFT, ord("h"), ord("H"), ord("a"), ord("4")):
                 c = max(0, c - 1)
-            elif tasto in (curses.KEY_RIGHT, ord("l")):
+            elif tasto in (curses.KEY_RIGHT, ord("l"), ord("L"), ord("d"), ord("6")):
                 c = min(DIMENSIONE_GRIGLIA - 1, c + 1)
             elif tasto in (10, 13, curses.KEY_ENTER):
                 if modalita == "spara":
@@ -1719,45 +1532,86 @@ def rimuovi_pid():
         os.remove(PID_FILE)
 
 
-def avvia_server_background(host, porta):
-    pid_esistente = leggi_pid()
-    if pid_esistente and processo_attivo(pid_esistente):
-        return False, "Il server è già in esecuzione. Fermalo prima di riavviare."
+def leggi_pid_web():
+    if not os.path.isfile(PID_WEB_FILE):
+        return None
+    try:
+        with open(PID_WEB_FILE, "r", encoding="utf-8") as handle:
+            return int(handle.read().strip())
+    except (OSError, ValueError):
+        return None
+
+
+def scrivi_pid_web(pid):
     assicura_cartella()
-    log_handle = open(LOG_FILE, "a", encoding="utf-8")
-    comando = [sys.executable, SCRIPT, "server", host, str(porta)]
+    with open(PID_WEB_FILE, "w", encoding="utf-8") as handle:
+        handle.write(str(pid))
+
+
+def rimuovi_pid_web():
+    if os.path.isfile(PID_WEB_FILE):
+        os.remove(PID_WEB_FILE)
+
+
+def _avvia_processo_background(comando, log_path, pid_path, scrivi):
+    assicura_cartella()
+    log_handle = open(log_path, "a", encoding="utf-8")
     kwargs = {
         "cwd": BASE,
         "stdout": log_handle,
         "stderr": subprocess.STDOUT,
+        "stdin": subprocess.DEVNULL,
     }
     if sys.platform == "win32":
         kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
-        kwargs["stdin"] = subprocess.DEVNULL
-        processo = subprocess.Popen(comando, **kwargs)
     else:
-        kwargs["stdin"] = subprocess.DEVNULL
         kwargs["start_new_session"] = True
-        processo = subprocess.Popen(comando, **kwargs)
-    scrivi_pid(processo.pid)
-    cfg = carica_config_completa(CONFIG_FILE)
-    cfg["host"] = host
-    cfg["porta"] = porta
-    salva_config_completa(CONFIG_FILE, cfg)
+    processo = subprocess.Popen(comando, **kwargs)
+    scrivi(processo.pid)
     time.sleep(0.6)
     if processo.poll() is not None:
-        rimuovi_pid()
+        if pid_path == PID_FILE:
+            rimuovi_pid()
+        else:
+            rimuovi_pid_web()
         return False, "Il server non è partito. Controlla il file di log."
     return True, str(processo.pid)
 
 
-def ferma_server():
-    pid = leggi_pid()
-    if not pid:
-        return False, "Nessun server in background registrato."
+def avvia_server_background(host, porta):
+    pid_esistente = leggi_pid()
+    if pid_esistente and processo_attivo(pid_esistente):
+        return False, "Il server è già in esecuzione. Fermalo prima di riavviare."
+    comando = [sys.executable, SCRIPT, "server", host, str(porta)]
+    ok, msg = _avvia_processo_background(comando, LOG_FILE, PID_FILE, scrivi_pid)
+    if not ok:
+        return ok, msg
+    cfg = carica_config_completa(CONFIG_FILE)
+    cfg["host"] = host
+    cfg["porta"] = porta
+    salva_config_completa(CONFIG_FILE, cfg)
+    return ok, msg
+
+
+def avvia_server_web_background(host, porta):
+    pid_esistente = leggi_pid_web()
+    if pid_esistente and processo_attivo(pid_esistente):
+        return False, "Il server web è già in esecuzione. Fermalo prima di riavviare."
+    comando = [sys.executable, SCRIPT, "server-web", host, str(porta)]
+    ok, msg = _avvia_processo_background(comando, LOG_WEB_FILE, PID_WEB_FILE, scrivi_pid_web)
+    if not ok:
+        return ok, msg
+    cfg = carica_config_completa(CONFIG_FILE)
+    cfg["host"] = host
+    cfg["porta_http"] = porta
+    salva_config_completa(CONFIG_FILE, cfg)
+    return ok, msg
+
+
+def _termina_pid(pid, rimuovi):
     if not processo_attivo(pid):
-        rimuovi_pid()
-        return False, "Il processo registrato non è più attivo. File PID pulito."
+        rimuovi()
+        return False
     try:
         if sys.platform == "win32":
             subprocess.run(["taskkill", "/PID", str(pid), "/F"], check=False, capture_output=True)
@@ -1767,9 +1621,28 @@ def ferma_server():
             if processo_attivo(pid):
                 os.kill(pid, signal.SIGKILL)
     except OSError:
-        return False, "Non sono riuscito a terminare il server."
-    rimuovi_pid()
-    return True, "Server fermato."
+        return False
+    rimuovi()
+    return True
+
+
+def ferma_server():
+    fermati = 0
+    pid = leggi_pid()
+    if pid:
+        if _termina_pid(pid, rimuovi_pid):
+            fermati += 1
+        elif pid:
+            rimuovi_pid()
+    pid_web = leggi_pid_web()
+    if pid_web:
+        if _termina_pid(pid_web, rimuovi_pid_web):
+            fermati += 1
+        elif pid_web:
+            rimuovi_pid_web()
+    if fermati == 0:
+        return False, "Nessun server in background registrato."
+    return True, f"Server fermati: {fermati}."
 
 
 def porta_predefinita():
@@ -1809,6 +1682,25 @@ def avvia_server_ui(host, porta):
     pannello_endpoint(righe_endpoint(porta, host))
 
 
+def avvia_server_web_ui(host, porta):
+    ok, messaggio = avvia_server_web_background(host, porta)
+    if not ok:
+        messaggio_errore(messaggio)
+        return
+    pulisci_schermo()
+    print(banner_principale())
+    bind = "127.0.0.1" if host in ("127.0.0.1", "localhost") else host
+    url = f"http://{bind}:{porta}/api/health"
+    messaggio_ok(
+        f"Server web avviato.\n"
+        f"PID: {messaggio}\n"
+        f"HTTP: http://{bind}:{porta}\n"
+        f"Apri il sito /gioca e imposta questo indirizzo API.\n"
+        f"Log: {LOG_WEB_FILE}"
+    )
+    pannello_endpoint(righe_endpoint(porta, host))
+
+
 def ferma_server_ui():
     ok, messaggio = ferma_server()
     if ok:
@@ -1828,8 +1720,8 @@ def stato_server():
     attivo = pid is not None and processo_attivo(pid)
     ascolto = porta_raggiungibile(host, porta)
     pubblico = indirizzo_pubblico()
-    stato_proc = stile("● IN ESECUZIONE", GRASSETTO + VERDE) if attivo else stile("○ FERMO", ROSSO)
-    stato_porta = stile("● IN ASCOLTO", GRASSETTO + VERDE) if ascolto else stile("○ NON RAGGIUNGIBILE", ROSSO)
+    stato_proc = stile("[ON] IN ESECUZIONE", GRASSETTO + VERDE) if attivo else stile("[OFF] FERMO", ROSSO)
+    stato_porta = stile("[ON] IN ASCOLTO", GRASSETTO + VERDE) if ascolto else stile("[OFF] NON RAGGIUNGIBILE", ROSSO)
     righe = [
         f"Processo: {stato_proc}  (PID {pid if pid else '—'})",
         f"Porta {porta}: {stato_porta}",
@@ -1881,16 +1773,22 @@ def loop_launcher():
                 porta_predef = rete[1]
             attesa_invio()
         elif scelta == 1:
+            cfg = carica_config_completa(CONFIG_FILE)
+            rete = configurazione_server(cfg.get("porta_http", PORTA_HTTP_PREDEFINITA))
+            if rete is not None:
+                avvia_server_web_ui(rete[0], rete[1])
+            attesa_invio()
+        elif scelta == 2:
             nuova = connetti_client(porta_predef)
             if nuova:
                 porta_predef = nuova
             attesa_invio()
-        elif scelta == 2:
-            stato_server()
         elif scelta == 3:
+            stato_server()
+        elif scelta == 4:
             ferma_server_ui()
             attesa_invio()
-        elif scelta == 4:
+        elif scelta == 5:
             pulisci_schermo()
             print(stile("A presto.", CIANO + GRASSETTO))
             return
@@ -1908,6 +1806,12 @@ def main():
         host = sys.argv[2] if len(sys.argv) > 2 else HOST_PREDEFINITO
         porta = int(sys.argv[3]) if len(sys.argv) > 3 else PORTA_PREDEFINITA
         run_client(host, porta)
+    elif len(sys.argv) >= 2 and sys.argv[1] == "server-web":
+        from server_web import run_server_web
+
+        host = sys.argv[2] if len(sys.argv) > 2 else "0.0.0.0"
+        porta = int(sys.argv[3]) if len(sys.argv) > 3 else PORTA_HTTP_PREDEFINITA
+        run_server_web(host, porta)
     else:
         loop_launcher()
 
