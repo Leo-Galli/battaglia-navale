@@ -1,6 +1,6 @@
 # Battaglia Navale — Datasheet tecnico
 
-Documentazione di architettura, protocollo e comportamento del codice in `battaglia_navale.py`. Per avvio rapido e regole utente vedi `README.md`.
+Documentazione di architettura, protocollo e comportamento del codice. Per avvio rapido e regole utente vedi `README.md`. **Diagrammi di sistema:** [`FLOWCHART.md`](FLOWCHART.md).
 
 ---
 

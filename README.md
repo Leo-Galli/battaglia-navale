@@ -9,7 +9,7 @@ Due giocatori, terminale, rete TCP. Un file Python, niente dipendenze.
 [![Dependencies](https://img.shields.io/badge/Dipendenze-Zero-FF6B6B?style=for-the-badge)](battaglia_navale.py)
 [![Platform](https://img.shields.io/badge/Linux%20%7C%20macOS%20%7C%20Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white)](avvia.sh)
 
-[Sito](website/) · [Gioca online](https://battaglia-navale.vercel.app/gioca) · [App Android](android/) · Vercel root `website/`
+[Sito](website/) · [Gioca online](https://battaglia-navale.vercel.app/gioca) · [App Android](android/) · [Flowchart sistema](FLOWCHART.md)
 
 </div>
 
