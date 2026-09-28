@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.env.*
+.battaglia_navale/
+
+website/node_modules/
+website/dist/
+website/.astro/

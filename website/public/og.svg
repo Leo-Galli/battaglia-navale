@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Battaglia Navale">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#071322"/>
+      <stop offset="100%" style="stop-color:#0c2a45"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <text x="600" y="280" text-anchor="middle" fill="#7dd3fc" font-family="system-ui,sans-serif" font-size="72" font-weight="700">Battaglia Navale</text>
+  <text x="600" y="360" text-anchor="middle" fill="#94a3b8" font-family="system-ui,sans-serif" font-size="32">Terminale · TCP · Python</text>
+  <g fill="#22d3ee" opacity="0.9">
+    <rect x="420" y="420" width="24" height="24" rx="2"/>
+    <rect x="452" y="420" width="24" height="24" rx="2"/>
+    <rect x="484" y="420" width="24" height="24" rx="2"/>
+    <rect x="516" y="420" width="24" height="24" rx="2" fill="#ef4444"/>
+    <rect x="548" y="420" width="24" height="24" rx="2" fill="#eab308"/>
+    <rect x="580" y="420" width="24" height="24" rx="2"/>
+    <rect x="612" y="420" width="24" height="24" rx="2"/>
+    <rect x="644" y="420" width="24" height="24" rx="2"/>
+    <rect x="676" y="420" width="24" height="24" rx="2"/>
+    <rect x="708" y="420" width="24" height="24" rx="2"/>
+    <rect x="740" y="420" width="24" height="24" rx="2"/>
+  </g>
+</svg>

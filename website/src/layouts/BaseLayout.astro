@@ -1,0 +1,148 @@
+---
+import { siteConfig } from '../config/site';
+
+interface Props {
+  title?: string;
+  description?: string;
+  path?: string;
+  ogType?: 'website' | 'article';
+}
+
+const {
+  title = siteConfig.title,
+  description = siteConfig.description,
+  path = '',
+  ogType = 'website',
+} = Astro.props;
+
+const canonical = new URL(path || '/', Astro.site).href;
+const ogImage = new URL('/og.svg', Astro.site).href;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'WebSite',
+      '@id': `${Astro.site}#website`,
+      url: Astro.site,
+      name: siteConfig.name,
+      description: siteConfig.description,
+      inLanguage: siteConfig.language,
+    },
+    {
+      '@type': 'SoftwareApplication',
+      '@id': `${Astro.site}#app`,
+      name: siteConfig.name,
+      applicationCategory: 'GameApplication',
+      operatingSystem: 'Linux, macOS, Windows',
+      offers: {
+        '@type': 'Offer',
+        price: '0',
+        priceCurrency: 'EUR',
+      },
+      description: siteConfig.description,
+      author: {
+        '@type': 'Person',
+        name: siteConfig.author,
+      },
+      codeRepository: siteConfig.githubRepo,
+      programmingLanguage: 'Python',
+      softwareRequirements: 'Python 3.10 or newer',
+    },
+  ],
+};
+---
+
+<!doctype html>
+<html lang={siteConfig.language}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="author" content={siteConfig.author} />
+    <meta
+      name="keywords"
+      content={siteConfig.keywords.join(', ')}
+    />
+    <link rel="canonical" href={canonical} />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#071322" />
+
+    <meta property="og:type" content={ogType} />
+    <meta property="og:site_name" content={siteConfig.name} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:locale" content={siteConfig.locale} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:alt" content="Battaglia Navale — anteprima" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  </head>
+  <body>
+    <a class="skip" href="#contenuto">Vai al contenuto</a>
+    <slot />
+  </body>
+</html>
+
+<style is:global>
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    font-family: 'DM Sans', system-ui, sans-serif;
+    font-size: 1.0625rem;
+    line-height: 1.6;
+    color: #dce8f5;
+    background: #071322;
+    background-image:
+      radial-gradient(ellipse 120% 80% at 50% -30%, rgba(34, 120, 180, 0.35), transparent),
+      radial-gradient(circle at 100% 50%, rgba(0, 80, 120, 0.12), transparent 40%);
+  }
+
+  .skip {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    padding: 0.75rem 1rem;
+    background: #0ea5e9;
+    color: #071322;
+    font-weight: 600;
+    z-index: 100;
+  }
+
+  .skip:focus {
+    left: 1rem;
+    top: 1rem;
+  }
+
+  code,
+  pre,
+  .mono {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+  }
+</style>
