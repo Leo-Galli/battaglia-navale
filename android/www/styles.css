@@ -39,6 +39,31 @@ body {
   color: #64748b;
 }
 
+.link-btn {
+  margin-top: 0.5rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #22d3ee;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.update-banner h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  color: #7dd3fc;
+}
+
+.update-body {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  color: #cbd5e1;
+  white-space: pre-wrap;
+}
+
 .card {
   margin-top: 1rem;
   padding: 1rem;

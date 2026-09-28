@@ -26,7 +26,7 @@ Documentazione di architettura, protocollo e comportamento del codice. Per avvio
 
 ## Cos’è e come gira
 
-Applicazione **a due giocatori** in terminale: un **server** tiene la partita in memoria, due **client** inviano comandi e disegnano le griglie. Tutto è in **un solo file Python** (stdlib, nessun `pip install`).
+Applicazione **a due giocatori**: server TCP (terminale), server HTTP (browser/app), motore condiviso in `motore.py`. Client: TUI (`battaglia_navale.py`), sito `/gioca`, app `android/`.
 
 Tre modi di esecuzione:
 

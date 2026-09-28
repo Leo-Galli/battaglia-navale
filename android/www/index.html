@@ -15,8 +15,19 @@
     <div class="app">
       <header class="header">
         <h1>Battaglia Navale</h1>
-        <p class="subtitle">Client Android — motore Python via HTTP</p>
+        <p class="subtitle">Client Android — motore Python via HTTP · <span id="app-version">…</span></p>
+        <button type="button" id="btn-check-update" class="link-btn">Controlla aggiornamenti GitHub</button>
       </header>
+
+      <section class="card update-banner" id="update-banner" hidden>
+        <h2 id="update-title">Aggiornamento disponibile</h2>
+        <p id="update-body" class="update-body"></p>
+        <p id="update-status" class="status"></p>
+        <div class="toolbar">
+          <button type="button" id="btn-update" class="btn primary">Scarica e installa</button>
+          <button type="button" id="btn-skip-update" class="btn">Più tardi</button>
+        </div>
+      </section>
 
       <section class="card" id="setup">
         <label class="field">
@@ -53,6 +64,8 @@
         </section>
       </div>
     </div>
+    <script src="config.js"></script>
+    <script src="update.js"></script>
     <script src="game.js"></script>
   </body>
 </html>
