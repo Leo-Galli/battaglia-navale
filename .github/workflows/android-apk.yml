@@ -31,8 +31,9 @@ jobs:
 
       - name: Android SDK packages
         run: |
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses >/dev/null || true
+          "$SDKM" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
           echo "sdk.dir=$ANDROID_HOME" >> android/android/local.properties
 
       - name: Sync Capacitor web assets
