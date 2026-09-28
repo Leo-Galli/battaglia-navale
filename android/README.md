@@ -5,7 +5,7 @@ Client **Capacitor** con la stessa UI/logica del sito (`/gioca`): griglie touch,
 ## Requisiti
 
 - Node.js 22+
-- JDK 17+
+- JDK 21+
 - Android SDK (Android Studio o `cmdline-tools`)
 
 ## Sviluppo
