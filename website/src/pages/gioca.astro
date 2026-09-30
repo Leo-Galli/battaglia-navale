@@ -3,47 +3,28 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
 const title = 'Gioca online — Battaglia Navale';
 const description =
-  'Partita online nel browser: motore Python via HTTP, griglia responsive e controlli touch.';
+  'Play online: run battaglia_navale.py server-web — the same file serves the UI and game API.';
 ---
 
 <BaseLayout title={title} description={description} path="/gioca">
   <div class="page">
     <header class="top">
       <a href="/">Home</a>
-      <h1>Gioca online</h1>
-      <p>Motore Python (<code>motore.py</code> + <code>server_web.py</code>). Avvia il server web dal menu o con
-        <code>python3 battaglia_navale.py server-web 0.0.0.0 8080</code>.</p>
+      <h1>Play online</h1>
+      <p>
+        Start <code>python3 battaglia_navale.py server-web 0.0.0.0 8080</code> and open
+        <strong>http://&lt;host&gt;:8080/</strong> — UI, powers, and engine are all in that single Python file.
+      </p>
     </header>
 
     <section class="setup">
       <label>
-        URL server API
+        Game server URL (if already running)
         <input id="api-base" type="url" inputmode="url" placeholder="http://127.0.0.1:8080" />
       </label>
-      <button type="button" id="btn-join" class="btn primary">Entra in partita</button>
+      <button type="button" id="btn-open" class="btn primary">Open game UI</button>
       <p id="status" class="status" role="status"></p>
     </section>
-
-    <section class="controls" id="panel-controls" hidden>
-      <p id="phase-text"></p>
-      <div class="btn-row">
-        <button type="button" id="btn-rotate" class="btn">Ruota (R)</button>
-        <button type="button" id="btn-auto" class="btn">Auto (0)</button>
-        <button type="button" id="btn-fire" class="btn primary">Conferma</button>
-      </div>
-      <p class="hint">Frecce / WASD · Invio · touch sulla griglia nemica per sparare</p>
-    </section>
-
-    <div class="boards" id="boards" hidden>
-      <div class="board-wrap">
-        <h2>Tua flotta</h2>
-        <div id="grid-own" class="grid" aria-label="Tua griglia"></div>
-      </div>
-      <div class="board-wrap">
-        <h2>Nemico</h2>
-        <div id="grid-enemy" class="grid target" aria-label="Griglia nemica"></div>
-      </div>
-    </div>
   </div>
 </BaseLayout>
 
@@ -207,23 +188,9 @@ const description =
     background: #991b1b;
   }
 
-  .grid.target .cell {
-    cursor: pointer;
-  }
 </style>
 
 <script>
-  const COLS = 'ABCDEFGHIJ'.split('');
-  const SIZE = 10;
-
-  let apiBase = '';
-  let token = '';
-  let giocatore = 0;
-  let cursor = { r: 0, c: 0 };
-  let orizzontale = true;
-  let polling = null;
-  let lastState = null;
-
   const el = (id) => document.getElementById(id);
 
   function loadApiBase() {
@@ -232,224 +199,11 @@ const description =
     else el('api-base').value = `${location.protocol}//${location.hostname}:8080`;
   }
 
-  async function api(path, opts = {}) {
-    const res = await fetch(`${apiBase.replace(/\/$/, '')}${path}`, {
-      ...opts,
-      headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.motivo || data.errore || res.statusText);
-    return data;
-  }
-
-  function sym(ch) {
-    return { '.': '.', N: '#', X: 'X', O: 'o' }[ch] || ch;
-  }
-
-  function paintGrid(container, matrix, opts = {}) {
-    container.innerHTML = '';
-    for (let r = 0; r < SIZE; r++) {
-      for (let c = 0; c < SIZE; c++) {
-        const ch = matrix[r][c];
-        const div = document.createElement('button');
-        div.type = 'button';
-        div.className = 'cell';
-        div.dataset.r = String(r);
-        div.dataset.c = String(c);
-        div.textContent = sym(ch);
-        div.setAttribute('aria-label', `${COLS[c]}${r + 1}`);
-        if (ch === '.') div.classList.add('water');
-        if (ch === 'N') div.classList.add('ship');
-        if (ch === 'X') div.classList.add('hit');
-        if (ch === 'O') div.classList.add('miss');
-        if (opts.cursor && opts.cursor.r === r && opts.cursor.c === c) div.classList.add('cursor');
-        if (opts.preview?.has(`${r},${c}`)) div.classList.add('preview');
-        if (opts.bad?.has(`${r},${c}`)) div.classList.add('bad');
-        container.appendChild(div);
-      }
-    }
-  }
-
-  function previewCells(state) {
-    const set = new Set();
-    const bad = new Set();
-    if (state.fase !== 'posizionamento' || !state.prossima_lunghezza) return { set, bad };
-    const len = state.prossima_lunghezza;
-    for (let i = 0; i < len; i++) {
-      const r = cursor.r + (orizzontale ? 0 : i);
-      const c = cursor.c + (orizzontale ? i : 0);
-      if (r >= 0 && r < SIZE && c >= 0 && c < SIZE) {
-        const key = `${r},${c}`;
-        set.add(key);
-        if (state.propria[r][c] !== '.') bad.add(key);
-      } else {
-        bad.add(`${cursor.r},${cursor.c}`);
-      }
-    }
-    return { set, bad };
-  }
-
-  function render(state) {
-    lastState = state;
-    const own = el('grid-own');
-    const enemy = el('grid-enemy');
-    const placing = state.fase === 'posizionamento' && state.prossima_lunghezza;
-    const myTurn = state.fase === 'battaglia' && state.turno === giocatore;
-    const prev = placing ? previewCells(state) : { set: new Set(), bad: new Set() };
-
-    paintGrid(own, state.propria, {
-      cursor: placing ? cursor : null,
-      preview: prev.set,
-      bad: prev.bad,
-    });
-
-    paintGrid(enemy, state.nemica, { cursor: myTurn ? cursor : null });
-
-    el('phase-text').textContent = state.attesa_avversario
-      ? `Giocatore ${state.giocatore}: in attesa del secondo giocatore…`
-      : state.fase === 'posizionamento'
-        ? `Piazza nave ${state.prossima_lunghezza || '-'} (${COLS[cursor.c]}${cursor.r + 1})`
-        : state.fase === 'fine'
-          ? state.vincitore === giocatore
-            ? 'Hai vinto.'
-            : 'Hai perso.'
-          : myTurn
-            ? 'Tuo turno — colpito = giri ancora'
-            : `Turno giocatore ${state.turno}`;
-
-    el('btn-rotate').hidden = !placing;
-    el('btn-auto').hidden = !placing;
-    el('btn-fire').textContent = placing ? 'Piazza' : myTurn ? 'Spara' : 'Attendi';
-    el('btn-fire').disabled = !placing && !myTurn;
-  }
-
-  async function refresh() {
-    const state = await api(`/api/stato?token=${encodeURIComponent(token)}`);
-    render(state);
-    if (state.fase === 'fine' && polling) {
-      clearInterval(polling);
-      polling = null;
-    }
-  }
-
-  async function join() {
-    apiBase = el('api-base').value.trim();
-    localStorage.setItem('bn_api_base', apiBase);
-    el('status').textContent = 'Connessione…';
-    const data = await api('/api/unisciti', { method: 'POST', body: '{}' });
-    token = data.token;
-    giocatore = data.giocatore;
-    el('status').textContent = `Giocatore ${giocatore}. Connessi ${data.connessi}/${data.richiesti}`;
-    el('boards').hidden = false;
-    el('panel-controls').hidden = false;
-    await refresh();
-    if (polling) clearInterval(polling);
-    polling = setInterval(refresh, 1200);
-  }
-
-  async function confirm() {
-    if (!lastState) return;
-    if (lastState.fase === 'posizionamento' && lastState.prossima_lunghezza) {
-      await api('/api/piazza', {
-        method: 'POST',
-        body: JSON.stringify({
-          token,
-          riga: cursor.r,
-          colonna: cursor.c,
-          orizzontale,
-        }),
-      });
-    } else if (lastState.turno === giocatore) {
-      await api('/api/spara', {
-        method: 'POST',
-        body: JSON.stringify({ token, riga: cursor.r, colonna: cursor.c }),
-      });
-    }
-    await refresh();
-  }
-
-  function move(dr, dc) {
-    cursor.r = Math.max(0, Math.min(SIZE - 1, cursor.r + dr));
-    cursor.c = Math.max(0, Math.min(SIZE - 1, cursor.c + dc));
-    if (lastState) render(lastState);
-  }
-
-  function onKey(ev) {
-    const k = ev.key;
-    if (['ArrowUp', 'w', 'W', '8', 'k', 'K'].includes(k)) {
-      ev.preventDefault();
-      move(-1, 0);
-    } else if (['ArrowDown', 's', 'S', '2', 'j', 'J'].includes(k)) {
-      ev.preventDefault();
-      move(1, 0);
-    } else if (['ArrowLeft', 'a', '4', 'h', 'H'].includes(k)) {
-      ev.preventDefault();
-      move(0, -1);
-    } else if (['ArrowRight', 'd', 'D', '6', 'l', 'L'].includes(k)) {
-      ev.preventDefault();
-      move(0, 1);
-    } else if (k === 'r' || k === 'R' || k === ' ') {
-      ev.preventDefault();
-      orizzontale = !orizzontale;
-      if (lastState) render(lastState);
-    } else if (k === '0') {
-      ev.preventDefault();
-      autoPlace();
-    } else if (k === 'Enter') {
-      ev.preventDefault();
-      confirm().catch((e) => (el('status').textContent = e.message));
-    }
-  }
-
-  async function autoPlace() {
-    if (!lastState?.prossima_lunghezza) return;
-    const len = lastState.prossima_lunghezza;
-    outer: for (const horiz of [true, false]) {
-      for (let r = 0; r < SIZE; r++) {
-        for (let c = 0; c < SIZE; c++) {
-          let ok = true;
-          for (let i = 0; i < len; i++) {
-            const rr = r + (horiz ? 0 : i);
-            const cc = c + (horiz ? i : 0);
-            if (rr >= SIZE || cc >= SIZE || lastState.propria[rr][cc] !== '.') {
-              ok = false;
-              break;
-            }
-          }
-          if (ok) {
-            orizzontale = horiz;
-            cursor = { r, c };
-            await api('/api/piazza', {
-              method: 'POST',
-              body: JSON.stringify({ token, riga: r, colonna: c, orizzontale: horiz }),
-            });
-            await refresh();
-            return;
-          }
-        }
-      }
-    }
-    el('status').textContent = 'Nessuno spazio per piazzamento automatico.';
-  }
-
-  el('btn-join')?.addEventListener('click', () => join().catch((e) => (el('status').textContent = e.message)));
-  el('btn-fire')?.addEventListener('click', () => confirm().catch((e) => (el('status').textContent = e.message)));
-  el('btn-rotate')?.addEventListener('click', () => {
-    orizzontale = !orizzontale;
-    if (lastState) render(lastState);
-  });
-  el('btn-auto')?.addEventListener('click', () => autoPlace().catch((e) => (el('status').textContent = e.message)));
-
-  el('grid-enemy')?.addEventListener('click', (ev) => {
-    const t = ev.target;
-    if (!(t instanceof HTMLElement) || !t.dataset.r) return;
-    cursor.r = Number(t.dataset.r);
-    cursor.c = Number(t.dataset.c);
-    if (lastState?.fase === 'battaglia' && lastState.turno === giocatore) {
-      confirm().catch((e) => (el('status').textContent = e.message));
-    } else if (lastState) render(lastState);
+  el('btn-open')?.addEventListener('click', () => {
+    const base = el('api-base').value.trim().replace(/\/$/, '');
+    localStorage.setItem('bn_api_base', base);
+    window.location.href = `${base}/`;
   });
 
   loadApiBase();
-  window.addEventListener('keydown', onKey);
 </script>
