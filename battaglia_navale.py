@@ -37,9 +37,6 @@ MANCATO = "O"
 DIMENSIONE_GRIGLIA = 10
 COLONNE = "ABCDEFGHIJ"
 LUNGHEZZE_NAVI = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1]
-POTERI_TIPI = ("radar", "salvo")
-
-
 def parse_coordinata(testo):
     testo = testo.strip().upper().replace(" ", "")
     if len(testo) < 2:
@@ -163,8 +160,6 @@ class Partita:
         self.fase = "posizionamento"
         self.turno = 1
         self.vincitore = None
-        self.poteri = {1: {p: True for p in POTERI_TIPI}, 2: {p: True for p in POTERI_TIPI}}
-        self.ultimo_radar = {1: None, 2: None}
 
     def prossima_lunghezza(self, giocatore):
         indice = self.indice_nave[giocatore]
@@ -189,82 +184,6 @@ class Partita:
             if self.posizionamento_completo():
                 self.fase = "battaglia"
             return True, lunghezza
-
-    def _celle_radar(self, riga, colonna):
-        out = []
-        for dr in (-1, 0, 1):
-            for dc in (-1, 0, 1):
-                r, c = riga + dr, colonna + dc
-                if 0 <= r < DIMENSIONE_GRIGLIA and 0 <= c < DIMENSIONE_GRIGLIA:
-                    out.append((r, c))
-        return out
-
-    def _celle_salvo(self, riga, colonna):
-        celle = [(riga, colonna)]
-        for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-            r, c = riga + dr, colonna + dc
-            if 0 <= r < DIMENSIONE_GRIGLIA and 0 <= c < DIMENSIONE_GRIGLIA:
-                celle.append((r, c))
-        return celle
-
-    def usa_potere(self, giocatore, tipo, riga, colonna):
-        with self.lock:
-            if self.fase != "battaglia":
-                return None
-            if giocatore != self.turno:
-                return {"ok": False, "motivo": "turno_errato"}
-            if tipo not in POTERI_TIPI:
-                return {"ok": False, "motivo": "potere_sconosciuto"}
-            if not self.poteri[giocatore].get(tipo):
-                return {"ok": False, "motivo": "potere_esaurito"}
-            avversario = 2 if giocatore == 1 else 1
-            tavola = self.tavole[avversario]
-            if not tavola.dentro(riga, colonna):
-                return {"ok": False, "motivo": "coordinata_invalida"}
-
-            if tipo == "radar":
-                self.poteri[giocatore]["radar"] = False
-                celle = self._celle_radar(riga, colonna)
-                rivelazione = []
-                for r, c in celle:
-                    ship = tavola.griglia[r][c] == NAVE
-                    rivelazione.append({"riga": r, "colonna": c, "nave": ship})
-                self.ultimo_radar[giocatore] = rivelazione
-                self.turno = avversario
-                return {
-                    "ok": True,
-                    "tipo": "radar",
-                    "celle": rivelazione,
-                    "prossimo_turno": self.turno,
-                }
-
-            self.poteri[giocatore]["salvo"] = False
-            colpi = []
-            any_hit = False
-            for r, c in self._celle_salvo(riga, colonna):
-                if tavola.colpi_ricevuti[r][c]:
-                    colpi.append({"riga": r, "colonna": c, "esito": "già_colpito"})
-                    continue
-                esito, affondata = tavola.spara(r, c)
-                colpi.append({"riga": r, "colonna": c, "esito": esito, "affondata": affondata})
-                if esito == "colpito":
-                    any_hit = True
-            payload = {
-                "ok": True,
-                "tipo": "salvo",
-                "colpi": colpi,
-                "riga": riga,
-                "colonna": colonna,
-                "bersaglio": avversario,
-            }
-            if tavola.tutte_navi_affondate():
-                self.vincitore = giocatore
-                self.fase = "fine"
-                payload["vittoria"] = giocatore
-            elif not any_hit:
-                self.turno = avversario
-            payload["prossimo_turno"] = self.turno
-            return payload
 
     def spara(self, giocatore, riga, colonna):
         with self.lock:
@@ -308,8 +227,6 @@ class Partita:
                 "nemica": self.tavole[avversario].matrice(mostra_navi=False),
                 "navi_piazzate": self.indice_nave[giocatore],
                 "navi_totali": len(LUNGHEZZE_NAVI),
-                "poteri": dict(self.poteri[giocatore]),
-                "radar_ultimo": self.ultimo_radar.get(giocatore),
             }
 
 
@@ -2092,100 +2009,39 @@ def _web_html(handler, codice, html):
     handler.wfile.write(body)
 
 
-WEB_GAME_PAGE = r"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
-<meta name="theme-color" content="#071322"/>
-<title>Battleship</title>
-<style>
-:root{color-scheme:dark;font-family:system-ui,sans-serif}
-body{margin:0;background:#020617;color:#e2e8f0}
-.app{width:min(960px,calc(100% - 1.5rem));margin:0 auto;padding:1rem 0 3rem}
-h1{margin:.5rem 0;font-size:clamp(1.4rem,4vw,2rem)}
-.sub{color:#94a3b8;font-size:.9rem}
-.card{margin:1rem 0;padding:1rem;border:1px solid #334155;border-radius:8px;background:#0f172a99}
-label{display:grid;gap:.35rem;font-size:.875rem}
-input{padding:.65rem;border-radius:6px;border:1px solid #334155;background:#020617;color:#e2e8f0;width:100%;box-sizing:border-box}
-.btn{padding:.55rem 1rem;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-weight:600;cursor:pointer;touch-action:manipulation}
-.btn.primary{background:#0284c7;border-color:#0284c7;color:#f0f9ff}
-.btn:disabled{opacity:.45;cursor:not-allowed}
-.btn-row{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.5rem}
-.status{min-height:1.25rem;color:#7dd3fc;font-size:.875rem;margin-top:.5rem}
-.boards{display:grid;gap:1.25rem}
-@media(min-width:720px){.boards{grid-template-columns:1fr 1fr}}
-.board h2{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin:0 0 .5rem}
-.grid{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:2px;touch-action:manipulation}
-.cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,monospace;font-size:clamp(.65rem,2.8vw,.85rem);font-weight:600;border-radius:3px;background:#0c4a6e;color:#bae6fd;border:none;padding:0}
-.cell.water{background:#082f49;color:#64748b}
-.cell.ship{background:#14532d;color:#bbf7d0}
-.cell.hit{background:#7f1d1d;color:#fecaca}
-.cell.miss{background:#713f12;color:#fde68a}
-.cell.cursor{outline:2px solid #22d3ee;outline-offset:-2px}
-.cell.preview{background:#155e75}
-.cell.bad{background:#991b1b}
-.cell.radar-ship{background:#4c1d95;color:#e9d5ff}
-.cell.radar-water{background:#1e3a5f}
-.grid.target .cell{cursor:pointer}
-.hint{font-size:.8rem;color:#64748b;margin:.5rem 0 0}
-</style>
-</head>
-<body>
-<div class="app">
-<header><h1>Battleship</h1><p class="sub">Python engine · single-file server</p></header>
-<section class="card" id="setup">
-<label>API base URL<input id="api-base" type="url" placeholder="http://127.0.0.1:8080"/></label>
-<button type="button" id="btn-join" class="btn primary">Join match</button>
-<p id="status" class="status" role="status"></p>
-</section>
-<section class="card" id="panel-controls" hidden>
-<p id="phase-text"></p>
-<div class="btn-row">
-<button type="button" id="btn-rotate" class="btn">Rotate (R)</button>
-<button type="button" id="btn-auto" class="btn">Auto place (0)</button>
-<button type="button" id="btn-radar" class="btn">Radar (3×3)</button>
-<button type="button" id="btn-salvo" class="btn">Salvo (+)</button>
-<button type="button" id="btn-fire" class="btn primary">Confirm</button>
-<button type="button" id="btn-rematch" class="btn primary" hidden>New match</button>
-</div>
-<p class="hint">Arrows / WASD · Enter · click enemy grid · powers use your turn</p>
-</section>
-<div class="boards" id="boards" hidden>
-<div class="board"><h2>Your fleet</h2><div id="grid-own" class="grid"></div></div>
-<div class="board"><h2>Enemy</h2><div id="grid-enemy" class="grid target"></div></div>
-</div>
-</div>
-<script>
-const COLS='ABCDEFGHIJ'.split(''),SIZE=10;
-let apiBase='',token='',giocatore=0,cursor={r:0,c:0},orizzontale=true,polling=null,lastState=null,powerMode=null;
-const el=id=>document.getElementById(id);
-function loadApiBase(){const s=location.origin;if(s.startsWith('http'))el('api-base').value=s;}
-async function api(path,opts={}){const res=await fetch(`${apiBase.replace(/\/$/,'')}${path}`,{...opts,headers:{'Content-Type':'application/json',...(opts.headers||{})}});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.motivo||data.errore||res.statusText);return data;}
-function sym(ch){return{'.':'.',N:'#',X:'X',O:'o'}[ch]||ch;}
-function radarOverlay(state){const m=new Map();if(!state?.radar_ultimo)return m;for(const c of state.radar_ultimo)m.set(`${c.riga},${c.colonna}`,c.nave?'ship':'water');return m;}
-function paintGrid(container,matrix,opts={}){container.replaceChildren();const rad=opts.radar||new Map();for(let r=0;r<SIZE;r++)for(let c=0;c<SIZE;c++){const ch=matrix[r][c];const btn=document.createElement('button');btn.type='button';btn.className='cell';btn.dataset.r=String(r);btn.dataset.c=String(c);btn.textContent=sym(ch);if(ch==='.')btn.classList.add('water');if(ch==='N')btn.classList.add('ship');if(ch==='X')btn.classList.add('hit');if(ch==='O')btn.classList.add('miss');if(opts.cursor&&opts.cursor.r===r&&opts.cursor.c===c)btn.classList.add('cursor');if(opts.preview?.has(`${r},${c}`))btn.classList.add('preview');if(opts.bad?.has(`${r},${c}`))btn.classList.add('bad');const rk=`${r},${c}`;if(rad.has(rk))btn.classList.add(rad.get(rk)==='ship'?'radar-ship':'radar-water');container.appendChild(btn);}}
-function previewCells(state){const set=new Set(),bad=new Set();if(state.fase!=='posizionamento'||!state.prossima_lunghezza)return{set,bad};const len=state.prossima_lunghezza;for(let i=0;i<len;i++){const r=cursor.r+(orizzontale?0:i),c=cursor.c+(orizzontale?i:0);if(r>=0&&r<SIZE&&c>=0&&c<SIZE){set.add(`${r},${c}`);if(state.propria[r][c]!=='.')bad.add(`${r},${c}`);}else bad.add(`${cursor.r},${cursor.c}`);}return{set,bad};}
-function render(state){lastState=state;const placing=state.fase==='posizionamento'&&state.prossima_lunghezza;const myTurn=state.fase==='battaglia'&&state.turno===giocatore;const prev=placing?previewCells(state):{set:new Set(),bad:new Set()};const rad=radarOverlay(state);paintGrid(el('grid-own'),state.propria,{cursor:placing?cursor:null,preview:prev.set,bad:prev.bad});paintGrid(el('grid-enemy'),state.nemica,{cursor:myTurn&&!powerMode?cursor:null,radar:rad});const p=state.poteri||{};el('phase-text').textContent=state.attesa_avversario?`Player ${state.giocatore}: waiting for opponent…`:state.fase==='posizionamento'?`Place ship ${state.prossima_lunghezza||'-'} (${COLS[cursor.c]}${cursor.r+1})`:state.fase==='fine'?state.vincitore===giocatore?'You win.':'You lose.':powerMode?`Power: ${powerMode} at ${COLS[cursor.c]}${cursor.r+1}`:myTurn?'Your turn — hit = shoot again':'Opponent turn';el('btn-rotate').hidden=!placing;el('btn-auto').hidden=!placing;el('btn-radar').hidden=!myTurn;el('btn-salvo').hidden=!myTurn;el('btn-radar').disabled=!p.radar;el('btn-salvo').disabled=!p.salvo;el('btn-fire').textContent=placing?'Place':myTurn&&!powerMode?'Fire':'Confirm power';el('btn-fire').disabled=!placing&&!myTurn;el('btn-rematch').hidden=state.fase!=='fine';}
-async function refresh(){const state=await api(`/api/stato?token=${encodeURIComponent(token)}`);render(state);if(state.fase==='fine'&&polling){clearInterval(polling);polling=null;}}
-async function join(){apiBase=el('api-base').value.trim()||location.origin;el('status').textContent='Connecting…';const data=await api('/api/unisciti',{method:'POST',body:'{}'});token=data.token;giocatore=data.giocatore;powerMode=null;el('status').textContent=`Player ${giocatore} · ${data.connessi}/${data.richiesti}`;el('boards').hidden=false;el('panel-controls').hidden=false;await refresh();if(polling)clearInterval(polling);polling=setInterval(()=>refresh().catch(e=>el('status').textContent=e.message),1200);}
-async function confirm(){if(!lastState)return;if(lastState.fase==='posizionamento'&&lastState.prossima_lunghezza){await api('/api/piazza',{method:'POST',body:JSON.stringify({token,riga:cursor.r,colonna:cursor.c,orizzontale})});}else if(powerMode&&lastState.turno===giocatore){await api('/api/potere',{method:'POST',body:JSON.stringify({token,tipo:powerMode,riga:cursor.r,colonna:cursor.c})});powerMode=null;}else if(lastState.turno===giocatore){const ch=lastState.nemica[cursor.r][cursor.c];if(ch==='X'||ch==='O'){el('status').textContent='Already fired here.';return;}await api('/api/spara',{method:'POST',body:JSON.stringify({token,riga:cursor.r,colonna:cursor.c})});}await refresh();}
-function move(dr,dc){cursor.r=Math.max(0,Math.min(SIZE-1,cursor.r+dr));cursor.c=Math.max(0,Math.min(SIZE-1,cursor.c+dc));if(lastState)render(lastState);}
-async function autoPlace(){if(!lastState?.prossima_lunghezza)return;const len=lastState.prossima_lunghezza;for(const horiz of[true,false])for(let r=0;r<SIZE;r++)for(let c=0;c<SIZE;c++){let ok=true;for(let i=0;i<len;i++){const rr=r+(horiz?0:i),cc=c+(horiz?i:0);if(rr>=SIZE||cc>=SIZE||lastState.propria[rr][cc]!=='.'){ok=false;break;}}if(ok){orizzontale=horiz;cursor={r,c};await api('/api/piazza',{method:'POST',body:JSON.stringify({token,riga:r,colonna:c,orizzontale:horiz})});await refresh();return;}}el('status').textContent='No space for auto placement.';}
-async function rematch(){await api('/api/rematch',{method:'POST',body:JSON.stringify({token})});powerMode=null;await refresh();if(!polling)polling=setInterval(()=>refresh().catch(e=>el('status').textContent=e.message),1200);}
-el('btn-join').addEventListener('click',()=>join().catch(e=>el('status').textContent=e.message));
-el('btn-fire').addEventListener('click',()=>confirm().catch(e=>el('status').textContent=e.message));
-el('btn-rotate').addEventListener('click',()=>{orizzontale=!orizzontale;if(lastState)render(lastState);});
-el('btn-auto').addEventListener('click',()=>autoPlace().catch(e=>el('status').textContent=e.message));
-el('btn-radar').addEventListener('click',()=>{powerMode=powerMode==='radar'?null:'radar';if(lastState)render(lastState);});
-el('btn-salvo').addEventListener('click',()=>{powerMode=powerMode==='salvo'?null:'salvo';if(lastState)render(lastState);});
-el('btn-rematch').addEventListener('click',()=>rematch().catch(e=>el('status').textContent=e.message));
-el('grid-enemy').addEventListener('click',ev=>{const t=ev.target;if(!(t instanceof HTMLElement)||!t.dataset.r)return;cursor.r=Number(t.dataset.r);cursor.c=Number(t.dataset.c);if(lastState?.fase==='battaglia'&&lastState.turno===giocatore)confirm().catch(e=>el('status').textContent=e.message);else if(lastState)render(lastState);});
-window.addEventListener('keydown',ev=>{const k=ev.key;if(['ArrowUp','w','W','k','K'].includes(k)){ev.preventDefault();move(-1,0);}else if(['ArrowDown','s','S','j','J'].includes(k)){ev.preventDefault();move(1,0);}else if(['ArrowLeft','a','A','h','H'].includes(k)){ev.preventDefault();move(0,-1);}else if(['ArrowRight','d','D','l','L'].includes(k)){ev.preventDefault();move(0,1);}else if(k==='r'||k==='R'||k===' '){ev.preventDefault();orizzontale=!orizzontale;if(lastState)render(lastState);}else if(k==='0'){ev.preventDefault();autoPlace().catch(e=>el('status').textContent=e.message);}else if(k==='Enter'){ev.preventDefault();confirm().catch(e=>el('status').textContent=e.message);}});
-loadApiBase();
-</script>
-</body>
-</html>"""
+WWW_DIR = os.path.join(BASE, "android", "www")
+_WEB_PAGE_CACHE = {"html": None, "mtime": None}
+
+
+def carica_pagina_web():
+    path = os.path.join(WWW_DIR, "index.html")
+    if not os.path.isfile(path):
+        return "<!DOCTYPE html><html><body><p>Missing android/www/index.html</p></body></html>"
+    mtime = os.path.getmtime(path)
+    if _WEB_PAGE_CACHE["html"] is not None and _WEB_PAGE_CACHE["mtime"] == mtime:
+        return _WEB_PAGE_CACHE["html"]
+    with open(path, encoding="utf-8") as handle:
+        html = handle.read()
+    _WEB_PAGE_CACHE["html"] = html
+    _WEB_PAGE_CACHE["mtime"] = mtime
+    return html
+
+
+def _leggi_asset_www(nome):
+    path = os.path.join(WWW_DIR, nome)
+    if not os.path.isfile(path):
+        return None
+    with open(path, "rb") as handle:
+        return handle.read()
+
+
+def _web_bytes(handler, codice, body, content_type):
+    handler.send_response(codice)
+    handler.send_header("Content-Type", content_type)
+    handler.send_header("Content-Length", str(len(body)))
+    _web_cors(handler)
+    handler.end_headers()
+    handler.wfile.write(body)
 
 
 class StatoWeb:
@@ -2239,12 +2095,6 @@ class StatoWeb:
             return {"ok": False, "motivo": esito["esito"]}
         return {"ok": True, **esito}
 
-    def potere(self, giocatore, tipo, riga, colonna):
-        esito = self.partita.usa_potere(giocatore, tipo, riga, colonna)
-        if esito is None:
-            return {"ok": False, "motivo": "fase_errata"}
-        return esito
-
     def rematch(self):
         with self.lock:
             if self.partita.fase != "fine":
@@ -2268,7 +2118,15 @@ class HandlerWeb(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         qs = parse_qs(parsed.query)
         if parsed.path in ("/", "/gioca", "/play"):
-            _web_html(self, 200, WEB_GAME_PAGE)
+            _web_html(self, 200, carica_pagina_web())
+            return
+        if parsed.path in ("/config.js", "/update.js"):
+            nome = parsed.path.lstrip("/")
+            body = _leggi_asset_www(nome)
+            if body is None:
+                _web_json(self, 404, {"errore": "non_trovato"})
+                return
+            _web_bytes(self, 200, body, "application/javascript; charset=utf-8")
             return
         if parsed.path == "/api/stato":
             token = (qs.get("token") or [""])[0]
@@ -2336,12 +2194,6 @@ class HandlerWeb(BaseHTTPRequestHandler):
             else:
                 riga, colonna = int(dati["riga"]), int(dati["colonna"])
             risp = self.stato.spara(giocatore, riga, colonna)
-            _web_json(self, 200 if risp.get("ok") else 400, risp)
-            return
-
-        if parsed.path == "/api/potere":
-            tipo = str(dati.get("tipo", ""))
-            risp = self.stato.potere(giocatore, tipo, int(dati["riga"]), int(dati["colonna"]))
             _web_json(self, 200 if risp.get("ok") else 400, risp)
             return
 

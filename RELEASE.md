@@ -2,7 +2,7 @@
 
 ## Novità
 
-- Motore di gioco in `motore.py` (usabile senza UI).
+- Game engine and web server in `battaglia_navale.py` only.
 - Modalità online browser (`/gioca`) e server HTTP (`server-web`).
 - Regola: **colpito = stesso turno**, mancato = passa l’avversario.
 - **App Android** in `android/` (Capacitor), stessa esperienza del sito con D-pad e layout mobile.

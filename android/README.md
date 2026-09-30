@@ -1,6 +1,6 @@
 # App Android
 
-Client **Capacitor** con la stessa UI/logica del sito (`/gioca`): griglie touch, D-pad, API HTTP verso `server_web.py`.
+Capacitor shell for the same web app as the browser (`android/www/index.html`). Point it at `battaglia_navale.py server-web` (HTTP API + UI).
 
 ## Requisiti
 
