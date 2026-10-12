@@ -497,13 +497,14 @@ dBBBBP'  dBBBBBBB dBP      dBP      dBBBBBBB dBBBBBB dBBBBP dBP    dBBBBBBB
 dBP dBP   dBBBBBBB BBBP    dBBBBBBB dBBBBP dBBBBP"""
 
 
+_SUPPORTA_COLORI = None
+
+
 def supporta_colori():
-    if os.environ.get("NO_COLOR"):
-        return False
-    if sys.platform == "win32":
-        os.system("")
-        return True
-    return sys.stdout.isatty()
+    global _SUPPORTA_COLORI
+    if _SUPPORTA_COLORI is None:
+        _SUPPORTA_COLORI = not os.environ.get("NO_COLOR") and sys.stdout.isatty()
+    return _SUPPORTA_COLORI
 
 
 def stile(testo, sequenza):
@@ -513,10 +514,8 @@ def stile(testo, sequenza):
 
 
 def pulisci_schermo():
-    if sys.platform == "win32":
-        os.system("cls")
-    else:
-        os.system("clear")
+    sys.stdout.write("\033[H\033[2J\033[3J")
+    sys.stdout.flush()
 
 
 def _centra_blocco_ascii(righe, larghezza):
@@ -893,10 +892,7 @@ def _leggi_tasto_raw():
 def _menu_fallback(opzioni, titolo="Menu principale", indice_iniziale=0, intestazione=False):
     indice = indice_iniziale
     while True:
-        if sys.platform == "win32":
-            os.system("cls")
-        else:
-            os.system("clear")
+        pulisci_schermo()
         print(_render_statico(opzioni, indice, titolo, intestazione=intestazione))
         sys.stdout.flush()
         tasto = _leggi_tasto_raw()
@@ -1306,10 +1302,7 @@ def _sessione_fallback(griglia_propria, griglia_nemica, modalita, lunghezza=None
     orizzontale = True
     messaggio = ""
     while True:
-        if sys.platform == "win32":
-            os.system("cls")
-        else:
-            os.system("clear")
+        pulisci_schermo()
         if modalita == "piazza":
             segno = "—" if orizzontale else "|"
             print(f"Nave {lunghezza}  {coordinate_label(r, c)}  {segno}\n")
