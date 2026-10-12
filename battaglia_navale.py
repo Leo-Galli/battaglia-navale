@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# Battaglia navale: server, client e menu nel terminale.
 from __future__ import annotations
 
 import json
@@ -33,7 +32,7 @@ def _configura_console_windows():
         kernel32.SetConsoleCP(65001)
         kernel32.SetConsoleOutputCP(65001)
         ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004
-        for handle_id in (-11, -12):  # STD_OUTPUT_HANDLE, STD_ERROR_HANDLE
+        for handle_id in (-11, -12):
             handle = kernel32.GetStdHandle(handle_id)
             modo = ctypes.c_uint32()
             if kernel32.GetConsoleMode(handle, ctypes.byref(modo)):
@@ -58,7 +57,6 @@ LOG_FILE = os.path.join(CARTELLA_DATI, "server.log")
 LOG_WEB_FILE = os.path.join(CARTELLA_DATI, "server-web.log")
 CONFIG_FILE = os.path.join(CARTELLA_DATI, "server.json")
 
-# --- Game engine (formerly motore.py) ---
 ACQUA = "."
 NAVE = "N"
 COLPITO = "X"
@@ -292,8 +290,6 @@ def piazzamento_casuale(griglia, lunghezza):
         return None
     return random.choice(opzioni)
 
-
-# --- End game engine ---
 
 PORTA_PREDEFINITA = 5555
 PORTA_HTTP_PREDEFINITA = 8080

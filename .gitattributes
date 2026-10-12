@@ -1,3 +1,4 @@
 avvia.bat text eol=crlf
 avvia.sh text eol=lf
 battaglia_navale.py text eol=lf
+battaglia_navale_offline.py text eol=lf
