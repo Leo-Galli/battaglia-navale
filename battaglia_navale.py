@@ -15,10 +15,39 @@ import socket
 import subprocess
 import sys
 import threading
-import termios
-import tty
 import time
 import urllib.request
+
+if sys.platform == "win32":
+    import ctypes
+else:
+    import termios
+    import tty
+
+
+def _configura_console_windows():
+    if sys.platform != "win32":
+        return
+    try:
+        kernel32 = ctypes.windll.kernel32
+        kernel32.SetConsoleCP(65001)
+        kernel32.SetConsoleOutputCP(65001)
+        ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004
+        for handle_id in (-11, -12):  # STD_OUTPUT_HANDLE, STD_ERROR_HANDLE
+            handle = kernel32.GetStdHandle(handle_id)
+            modo = ctypes.c_uint32()
+            if kernel32.GetConsoleMode(handle, ctypes.byref(modo)):
+                kernel32.SetConsoleMode(handle, modo.value | ENABLE_VIRTUAL_TERMINAL_PROCESSING)
+        for flusso in (sys.stdout, sys.stderr):
+            try:
+                flusso.reconfigure(encoding="utf-8", errors="replace")
+            except (AttributeError, ValueError):
+                pass
+    except Exception:
+        pass
+
+
+_configura_console_windows()
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.abspath(__file__)
@@ -1724,9 +1753,27 @@ def assicura_cartella():
     os.makedirs(CARTELLA_DATI, exist_ok=True)
 
 
+def _processo_attivo_windows(pid):
+    PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+    STILL_ACTIVE = 259
+    kernel32 = ctypes.windll.kernel32
+    handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+    if not handle:
+        return False
+    try:
+        codice_uscita = ctypes.c_ulong()
+        if not kernel32.GetExitCodeProcess(handle, ctypes.byref(codice_uscita)):
+            return False
+        return codice_uscita.value == STILL_ACTIVE
+    finally:
+        kernel32.CloseHandle(handle)
+
+
 def processo_attivo(pid):
     if pid <= 0:
         return False
+    if sys.platform == "win32":
+        return _processo_attivo_windows(pid)
     try:
         os.kill(pid, 0)
     except OSError:
