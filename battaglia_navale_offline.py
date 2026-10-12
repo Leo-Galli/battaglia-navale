@@ -73,7 +73,15 @@ class Tavola:
         celle = celle_nave(riga, colonna, lunghezza, orizzontale)
         if celle is None:
             return False
-        return all(self.griglia[r][c] == ACQUA for r, c in celle)
+        for r, c in celle:
+            if self.griglia[r][c] != ACQUA:
+                return False
+            for dr in (-1, 0, 1):
+                for dc in (-1, 0, 1):
+                    rr, cc = r + dr, c + dc
+                    if 0 <= rr < DIMENSIONE_GRIGLIA and 0 <= cc < DIMENSIONE_GRIGLIA and self.griglia[rr][cc] == NAVE:
+                        return False
+        return True
 
     def piazza_nave(self, riga, colonna, lunghezza, orizzontale):
         if not self.posizione_valida(riga, colonna, lunghezza, orizzontale):

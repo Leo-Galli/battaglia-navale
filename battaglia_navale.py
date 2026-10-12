@@ -102,13 +102,7 @@ class Tavola:
         return celle
 
     def posizione_valida(self, riga, colonna, lunghezza, orizzontale):
-        celle = self.celle_nave(riga, colonna, lunghezza, orizzontale)
-        for r, c in celle:
-            if not self.dentro(r, c):
-                return False
-            if self.griglia[r][c] != ACQUA:
-                return False
-        return True
+        return piazzamento_valido(self.griglia, riga, colonna, lunghezza, orizzontale)
 
     def piazza_nave(self, riga, colonna, lunghezza, orizzontale):
         if not self.posizione_valida(riga, colonna, lunghezza, orizzontale):
@@ -275,6 +269,11 @@ def piazzamento_valido(griglia, riga, colonna, lunghezza, orizzontale):
     for r, c in celle:
         if griglia[r][c] != ACQUA:
             return False
+        for dr in (-1, 0, 1):
+            for dc in (-1, 0, 1):
+                rr, cc = r + dr, c + dc
+                if 0 <= rr < DIMENSIONE_GRIGLIA and 0 <= cc < DIMENSIONE_GRIGLIA and griglia[rr][cc] == NAVE:
+                    return False
     return True
 
 
@@ -283,8 +282,7 @@ def piazzamento_casuale(griglia, lunghezza):
     for orizzontale in (True, False):
         for r in range(DIMENSIONE_GRIGLIA):
             for c in range(DIMENSIONE_GRIGLIA):
-                celle = celle_nave(r, c, lunghezza, orizzontale)
-                if celle and all(griglia[rr][cc] == ACQUA for rr, cc in celle):
+                if piazzamento_valido(griglia, r, c, lunghezza, orizzontale):
                     opzioni.append((r, c, orizzontale))
     if not opzioni:
         return None
