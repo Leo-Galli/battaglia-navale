@@ -179,6 +179,8 @@ def piazza_flotta(tavola, nome):
         pulisci_schermo()
         print(stile(f"=== Piazzamento flotta - {nome} ===", GRASSETTO + CIANO))
         print("Formato: <coordinata> <o|v>  es. 'A1 o' orizzontale, 'C5 v' verticale.")
+        print("Nel formato orizzontale, la coordinata è verso destra,")
+        print("Nel formato verticale, la coordinata è verso il basso.")
         print("Scrivi 'auto' per piazzare da sola/o tutta la flotta restante, 'q' per uscire.\n")
         print(disegna_griglia(tavola, "La tua flotta", mostra_navi=True))
         print(f"\nProssima nave: lunghezza {lunghezza}  ({len(LUNGHEZZE_NAVI) - indice} rimanenti)")
